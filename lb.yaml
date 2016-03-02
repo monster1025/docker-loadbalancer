@@ -1,0 +1,95 @@
+#cloud-config
+
+hostname: "loadbalancer"
+ssh_authorized_keys:
+  - "ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEAhHqJADiHqF2A5JHAeolZi+iaoTgEk+S8x6nx7t5ET5B2r5h3xXn6y19WMZnQS54bSBJE9IPflUMptCHodAJppRjYEBnPkapTVKAFZKhSEDVGvjHD2pLy8cL3LW7i2xPHoiQlg/MxtrePjVVv+eXxHvRPUNo673smsYwuMkMVMhyXoQYVmi0geS/e0SFxQQh1awVwh0cvzO57G3TtQrzUVefLNrtrIEX6qKEgTaZQAAVj7N0CqzexvVO3ylN6AEK0TJSErPV6O7THNWtTNn4csc1hsfdPoKEMN727+SzFu7TGtxS0fwSvGB13nAgq8BjL6GU2EBL/DJJf6F5zeBHlAw== rsa-key-20151204"
+
+write_files:
+    - path: /etc/docker/certs.d/dockerhub.local:5000/ca.crt
+      permissions: 0644
+      content: |
+        -----BEGIN CERTIFICATE-----
+        MIIC/jCCAeigAwIBAgIIc9WWCl82eHcwCwYJKoZIhvcNAQELMA0xCzAJBgNVBAMT
+        AkNBMB4XDTE2MDIyMDA5MjAwMFoXDTIxMDIxODA5MjAwMFowDTELMAkGA1UEAxMC
+        Q0EwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCxSpnOViZevFSRsVx9
+        CdQUXqHnD0ujjTCcoJbwMi5oNu7CSdPsq8Rx6KczeuWvWo4S3MaJp4v68eKsHufu
+        mvfL1Y1dEnzKUsL01bInKGK4mU2l0OYYPAtrf6LyQVv1jA1wUsj6HRhveTzB1oZV
+        kNpHh6E+TeBUGnPT5cARjBb3lxb3wEBRPz33U5v0m2Gx+Pp7WB1UBMxvFwAYCsjZ
+        8iLwENylA06sK/3r6f/uX0hSHLen72iaqL2CAOPekP7JU304QYNGtQ4yp1fbnbq2
+        VMp3GWZ2dbn4OdlTaWGYH/lU8+qy0Pgtrz1IrpdU5AHRlkR51vWHvFIEjL4W7RYb
+        qvk9AgMBAAGjZjBkMA4GA1UdDwEB/wQEAwIABjASBgNVHRMBAf8ECDAGAQH/AgEC
+        MB0GA1UdDgQWBBSa9S1WLhXkzOWLwveZA1FXFzpxMDAfBgNVHSMEGDAWgBSa9S1W
+        LhXkzOWLwveZA1FXFzpxMDALBgkqhkiG9w0BAQsDggEBAFTf79ZZBcTl/zdKm4YG
+        g+jbH2fKM50NW4kfj1vU2FXzG5Z3y8pQO/JihrUBTl3BnmeYL1GSWy1YLkiRRG0f
+        Jp0ABFqA9VGttNPaHfMmPUyS9akmRa9rrvmLejjO+HmoRg/JmA9HAi0wA5aHNcrP
+        Xeg6JoEB/sbRxQ45G6MgOHuxRw752zV00iBJyB4wgYdzz1zTJDmJ+KPlRiOXslfC
+        YnrlhumzNy7Ov1Mg2XRheQ0xmFP88HLOcdWoy+UiR4soYFs2hvymoyo7b7/ImtcZ
+        dGjsqygc2oFUqonVYZuPFTSmICRW7LBP4h/EzKG9UjyNEwW5f32awGezLRyFmzew
+        3F8=
+        -----END CERTIFICATE-----
+    - path: /etc/hosts
+      permissions: 0644
+      content: |
+        10.10.70.114  dockerhub.local
+
+coreos:
+  update:
+    reboot-strategy: "off"
+    group: "alpha"
+  units:
+    - name: setup-network-environment.service
+      command: start
+      runtime: true
+      content: |
+        [Unit]
+        Description=Setup Network Environment
+        Documentation=https://github.com/kelseyhightower/setup-network-environment
+        Requires=network-online.target
+        After=network-online.target
+
+        [Service]
+        ExecStartPre=-/usr/bin/mkdir -p /opt/bin
+        ExecStartPre=/usr/bin/wget -P /opt/bin https://github.com/kelseyhightower/setup-network-environment/releases/download/v1.0.0/setup-network-environment
+
+        ExecStartPre=/usr/bin/chmod +x /opt/bin/setup-network-environment
+        ExecStart=/opt/bin/setup-network-environment
+        RemainAfterExit=yes
+        Type=oneshot
+    - name: setup-docker-compose.service
+      command: start
+      runtime: true
+      content: |
+        [Unit]
+        Description=Setup Docker Compose
+        Requires=network-online.target
+        After=network-online.target
+
+        [Service]
+        ExecStartPre=-/usr/bin/mkdir -p /opt/bin
+        ExecStartPre=/usr/bin/wget -O /opt/bin/docker-compose https://github.com/docker/compose/releases/download/1.6.2/docker-compose-Linux-x86_64
+
+        ExecStartPre=/usr/bin/chmod +x /opt/bin/docker-compose
+        ExecStart=-/opt/bin/docker-compose
+        RemainAfterExit=yes
+        Type=oneshot
+    - name: consul.service
+      command: start
+      runtime: true
+      content: |
+        [Unit]
+        Description=Consul service
+        After=docker.service
+        Requires=docker.service
+        Requires=network-online.target
+        After=network-online.target
+        Requires=setup-network-environment.service
+        After=setup-network-environment.service
+
+        [Service]
+        Restart=always
+        RestartSec=10s
+        EnvironmentFile=/etc/network-environment
+        ExecStartPre=-/usr/bin/docker stop %p
+        ExecStartPre=-/usr/bin/docker rm %p
+        ExecStart=/usr/bin/docker run --name %p -h=%H --restart=always -p 8300:8300 -p 8301:8301 -p 8301:8301/udp -p 8302:8302 -p 8302:8302/udp -p 8400:8400 -p 8500:8500 gliderlabs/consul-server -server -advertise ${DEFAULT_IPV4} -atlas-join -atlas=monster/infrastructure -atlas-token='LWdH8njM12MR9w.atlasv1.bjZp16w4EZ2yyoO5S0w5F5fpJks56zu0UzJISVDWhg0zS9nUyDLFGANatbSgQ8UJzjk'
+        

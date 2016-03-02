@@ -1,0 +1,6 @@
+<html>
+<h1>Available services:</h1>
+{{ range $service := services }}{{ if .Tags | contains "production" }}
+<a href="/{{ $service.Name }}/">/{{ $service.Name }}/</a> - {{ range service .Name }}{{.NodeAddress}}:{{.Port}};{{end}}<br />
+{{end}}{{end}}
+</html>
