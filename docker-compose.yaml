@@ -1,0 +1,9 @@
+version: '2'
+services:
+  lb:
+    build: ./
+    extra_hosts:
+      - "consul:10.10.70.106"
+    ports:
+      - "80:80"
+    restart: always
