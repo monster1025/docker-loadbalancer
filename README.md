@@ -1,60 +1,26 @@
-## Installing Prerequisites
+#### Nginx dynamic load balancer, based on consul services.
+Based on https://github.com/monster1025/docker-loadbalancer repo.
 
-```shell
-brew update
-brew install caskroom/cask/brew-cask
-brew cask install boot2docker
-brew install fig
+You can use registrator to register services. 
+This image registers only production tagged services.
+
+
+#### Examples:
+And here is example for consul server run using atlas:
+
+```
+docker run --name consul -h=hostname --restart=always -p 8300:8300 -p 8301:8301 -p 8301:8301/udp -p 8302:8302 -p 8302:8302/udp -p 8400:8400 -p 8500:8500 gliderlabs/consul-server -server -advertise 10.10.10.10 -atlas-join -atlas=******/infrastructure -atlas-token='LWdH***************zjk'
 ```
 
-Optionally, you can use `direnv` to automatically set some environment variables, sourced from `.envrc`:
-```shell
-brew install direnv
-direnv allow .
+Example compose file:
 ```
-
-## Readying Docker
-
-```shell
-boot2docker init
-boot2docker upgrade
-boot2docker up
-docker version
-docker ps
-```
-
-## Boot The App
-
-From the root of the repository:
-
-```shell
-fig pull && fig build
-fig up -d
-```
-
-## Inspection
-### Consul Registered Services
-
-```shell
-curl http://`boot2docker ip 2>/dev/null`:8500/v1/catalog/services
-```
-
-### Visit LB In Default Browser
-
-```shell
-open "http://`boot2docker ip 2>/dev/null`/"
-```
-
-## Adding/Removing Backend Containers
-
-```shell
-fig scale app=4
-fig scale app=1
-```
-
-## Gotchas
-* The auto-detected advertise IP for Consul-in-Docker on Boot2docker does not appear to be routable from the Nginx container. Use the following to look up the IP to set for `-advertise`:
-
-```shell
-boot2docker ssh ifconfig eth0 | grep 'inet addr'
+version: '2'
+services:
+loadbalancer:
+build: ./
+container_name: loadbalancer
+ports:
+- "80:80"
+restart: always
+network_mode: host
 ```
