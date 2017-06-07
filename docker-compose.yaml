@@ -1,14 +1,16 @@
-version: '2'
-services:
-  loadbalancer:
-    build: ./
-    container_name: loadbalancer
-    #extra_hosts:
-    #  - "consul:127.0.0.1"
-    #external_links:
-    #  - consul:consul
-    ports:
-      - "80:80"
-    restart: always
-    network_mode: host
+loadbalancer:
+  build: ./
+  container_name: loadbalancer
+  #extra_hosts:
+  #  - "consul:127.0.0.1"
+  #external_links:
+  #  - consul:consul
+  ports:
+    - "80:80"
+  log_driver: gelf
+  log_opt:
+    gelf-address: "udp://logs.aeroclub.int:12201"
+    tag: "aeroclub.loadbanacer"
+  restart: always
+  net: host
     
